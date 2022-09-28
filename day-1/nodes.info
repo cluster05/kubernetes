@@ -1,0 +1,236 @@
+kebernates : 
+an open source system ( and de-facto standard ) for container deployment and management
+[docker compose for multiple machines]
+
+1 ) automatic deployment 
+2 ) scalling & load balancing  
+3 ) container management 
+
+
+                kubernates configuaration                                 any clound provider 
+                ( i.e. desired                                                or
+                    architecture -          =>   some provider    =>      Remote machines
+                number of container)             specific setup or        ( e.g could also be your 
+                                                    tool                     own datacenter ) 
+
+
+
+
+                                      cloud provider API
+                                            | 
+                                          cluster
+                                    ---------------------
+                                    |   control planes   | (API Server)      (Scheduler)(Kube-controller-manager)(cloud-controller-manager)
+                                    |  [ master nodes ]  |  kublet communication
+                                    ---------------------
+                                            | (one to many)
+                                    --------------------
+                                    |  pod (container)  | (kublet)(Docker)(kube-proxy)
+                                    |  pod (volume)     | 
+                                    |  proxy / config   |
+                                    |  [worker node ]   |
+                                    |       VM          |
+                                    ---------------------        
+
+------------------------------------------------------------------------
+TERMS 
+-------------------------------------------------------------------------
+cluster          : set of nodes machine which are running the containerized application (worker nodes) and other control nodes
+nodes            : physical or virtual machine with certain hardwere capacity which host one or multiple pods and communicate with cluster
+    master nodes : cluster control plane, mannaging the pods accross the worker nodes
+    worker nodes :  hosts the pods, running the container
+PODS             : pods hold actual runnign app container and their required resouces (volume)
+container        : docker container
+service          : logical set (group) of pods with unique pod and container independent ip address
+
+
+--------------------------------------------------------------------------
+Install kubernates
+-------------------------------------------------------------------------
+
+Check Requirements 
+
+1 ) kube control tool > kubectl
+    inorder to communicate to cluster
+2 ) Hyperviser > virtualbox
+    to create the cluster
+3 ) minikube (playground env tool) 
+    crate local development cluster
+    
+    minikube start --driver=virtualbox
+    minikube status
+    minikube dashboard
+    
+    tell minikube use virtualbox to create kubernates configuaration 
+
+----------------------------------------------------------------------------
+
+Kubernates Objects  ( created imperatively and declearatively )
+Pods
+Deployment
+Service
+Volume
+...
+
+
+Pods : 
+    contains and run one or more multiple containers
+    pods contain shared resouces(eg volume) for all pod container
+    has cluster internal IP by default
+
+    pods are ephemeral (kubernates start stop and replace)
+    
+    Pods managed by
+        Controller (specificly [Deployment])
+
+
+Deployment : 
+    control (multiple) pods
+
+    you set a desired state, kubernates then changes the actual state
+        (which container to run and number of instaces)
+    Deployment can be paused, deleted and rollback
+    Deployment can be scaled dynamically 
+
+[Hands on]
+required : 
+Node Application [Dockerfile] [dockerignore]
+
+docker build -t name .
+
+[check cluster up-runnnig]
+minikube status
+
+[if not]
+minikube start --driver=virtualbox/docker/hyperv 
+
+[view minikube dashboard]
+minikube dashboard
+
+--------------------------------------------------
+
+[send instruction to create the deployment]
+kubectl create deployment [deployment-name] --image=[username/imagename]
+    create new repo
+    docker tag [name] [username/name]
+    docker push [username/name]
+    
+[how many deployment]
+kubectl get deployment
+
+[how many pods]
+kubectl get pods
+
+(kubectl was config by minikube to automatic interact)
+-------------------------------------------------------
+
+[WHAT HAPPING]
+
+kubectl create deployment ...               <--------------------------------------------------+
+    [create the new deployment and send it to                                                  |
+         kubernates cluster to the master node]    --------------> worker node ( kublet manage the pod and container )
+            |                                                                            +---> pod (container)
+    Scheduler analyse runnign node pods and the best node 
+            for the new pods 
+   
+
+---------------------------------------------------------
+
+Service :
+    to reach pod and container running on pod 
+
+    expose the pods to the cluster or externally
+        pods have as internal IP by defaul it changes when pod replaced
+        services group pods with a shared IP
+        service allows external access to pods 
+
+[Hands on]
+    [ expose a pod created by deployment by creating service ]
+kubectl expose deployment [deployment-name] --type=clusterIP --port=8080    
+    --type ? 
+        ClusterIP (default) only reacheble from cluster
+        NodePort - deployment expose by the IP address of worker nodes
+        LoadBalancer - generate the unique address for server also evenly destribute Requirements
+
+[how to get]
+kubectl get services 
+
+[get service IP]
+minikube service [service-name]
+
+
+-------------------------------------------------------------
+
+Restarting container (automatic happing with kubernates)
+
+[Scalling]      [what]
+kubectl scale [deployment]/[pods] --replicas=3
+
+----------------------------------------------------------------
+
+[Updating Deployments]
+(push new images)(manged by tag)
+kubectl set image deployment/[deployment-name] [old-container-name]=[username/container-name:tagid]
+
+[updated status]
+kubectl rollout status deployment/[deployment-name]
+
+[deployment rollback]
+kubectl rollout undo deployment/[deployment-name]
+
+[move to more previous version]
+kubectl rollout history deployment/[deployment-name] [--revision=3]
+kubectl rollout undo deployment/[deployment-name] --to-revision=1
+
+------------------------------------------------------------------------
+
+[delete]
+kubectl delete service [service-name]
+kubectl delete deployment [deployment-name]
+
+-----------------------------------------------------------------------------------
+
+
+kubectl apply -f=deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment/Service/Job
+metadata:
+    name: <deployment-name>
+spec: // config of deployment
+    replicas: 1
+    selector:
+        matchLabels:
+            <app>: <name>
+    template:
+        metadata:
+            labels:
+                <app>: <name>
+                <app>: <name>
+        spec:
+        containers:
+            - name:<container-name>
+              image:<image-name> // image on registory
+
+            
+service.yaml
+
+apiVersion: v1 // from core group 
+kind: Service
+metadata:
+    name:backend
+spec:
+    selector:
+        <app>: <name>
+    ports:
+        - protocol : 'TCP'
+          port: 80 // inside 
+          targetPort: 8080 // outside
+    type: ClusterIP/NodePort/LoadBalancer
+
+kubectl delete -f=file1.yaml -f=file2.yaml
+
+--- [three dot] for new object 
+{service} [better practice]
+---
+{Deployment} 
