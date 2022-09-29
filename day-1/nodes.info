@@ -210,9 +210,15 @@ spec: // config of deployment
         spec:
         containers:
             - name:<container-name>
-              image:<image-name> // image on registory
+              image:<image-name>:latest //always pull new images // image on registory
+              imagePullPolicy: Always
+              livenessProbe:
+                httpGet:
+                    path: /
+                    path: 8080
+                periodSeconds: 10
+                initialDelaySeconds: 5
 
-            
 service.yaml
 
 apiVersion: v1 // from core group 
@@ -234,3 +240,12 @@ kubectl delete -f=file1.yaml -f=file2.yaml
 {service} [better practice]
 ---
 {Deployment} 
+
+-----------------------------------------------------------
+-----------------------------------------------------------
+
+[Kubernates Volume]
+
+------------------------------------------------------------
+
+[kubernates Network]
